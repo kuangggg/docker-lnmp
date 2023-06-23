@@ -1,0 +1,46 @@
+version: '2'
+services:
+  rmqnamesrv:
+    image: apache/rocketmq:4.9.4
+    container_name: rmqnamesrv
+    ports:
+      - 9876:9876
+    volumes:
+      - ./data/rocketmq/namesrv/logs:/home/rocketmq/logs
+    environment:
+      JAVA_OPT: -server -Xms512m -Xmx512m
+    command: sh mqnamesrv
+
+#===========
+# 10911是remotingServer使用的监听端口,remotingServer主要处理以下三类消息
+#     producer发送的消息
+#     conumser在消费失败或者消费超时发送的消息
+#     consumer拉取消息
+# 10912是主broker用于监听从broker请求的监听端口。
+# 10909是fastRemotingServer使用的监听端口，与remotingServer相似，但是不包含处理拉取消息的请求。在vipChannelEnabled开启时，producer，consumer发送消息才发送到fastRemotingServer
+  rmqbroker:
+    image: apache/rocketmq:4.9.4
+    container_name: rmqbroker
+    ports:
+      - 10909:10909
+      - 10911:10911
+      - 10912:10912
+    volumes:
+      - ./data/rocketmq/broker/logs:/home/rocketmq/logs
+      - ./data/rocketmq/broker/store:/home/rocketmq/store
+      - ./data/rocketmq/broker/conf/broker.conf:/home/rocketmq/rocketmq-4.9.4/conf/broker.conf
+    environment:
+      JAVA_OPT_EXT: -server -Xms512M -Xmx512M -Xmn256m
+    command: sh mqbroker -n rmqnamesrv:9876 -c ../conf/broker.conf
+    depends_on:
+      - rmqnamesrv
+
+  rmqconsole:
+    image: styletang/rocketmq-console-ng
+    container_name: rmqconsole
+    ports:
+      - 8080:8080
+    environment:
+      JAVA_OPTS: -Drocketmq.namesrv.addr=rmqnamesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false
+    depends_on:
+      - rmqnamesrv

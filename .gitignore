@@ -1,0 +1,5 @@
+.idea
+www/*
+!www/localhost/
+logs/*
+data/*
